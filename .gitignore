@@ -1,0 +1,25 @@
+# Секреты и локальные настройки
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# uv
+uv.lock.orig
+
+# IDE
+.idea/
+.vscode/
+.DS_Store
+
+# Локальные данные (появятся на шагах с памятью)
+data/
