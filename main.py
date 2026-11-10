@@ -1,16 +1,33 @@
-# This is a sample Python script.
+import asyncio
+import os
 
-# Press ⌃R to execute it or replace it with your code.
-# Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
+from dotenv import load_dotenv
+from ag2 import Agent
+from ag2.config import OllamaConfig
+
+load_dotenv()
 
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press ⌘F8 to toggle the breakpoint.
+config = OllamaConfig(
+    model=os.getenv("AG2_MODEL", "gemma4:31b"),
+    # Нативный API Ollama (путь /api/chat), поэтому НЕ /v1:
+    # для облака — https://ollama.com, для локального сервера — http://localhost:11434
+    host=os.getenv("AG2_BASE_URL", "http://localhost:11434"),
+    # Можно не указывать: ollama-SDK сам прочитает OLLAMA_API_KEY из окружения
+    api_key=os.getenv("OLLAMA_API_KEY"),
+    streaming=True,
+    temperature=0.2,
+)
+agent = Agent(
+    "assistant",
+    prompt="You are a helpful assistant.",
+    config=config,
+)
 
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
+async def main() -> None:
+    reply = await agent.ask("What's the weather in Paris?")
+    print(reply.body)
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+
+asyncio.run(main())
