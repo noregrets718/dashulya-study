@@ -1,8 +1,9 @@
 import asyncio
 import os
+import random
 
 from dotenv import load_dotenv
-from ag2 import Agent
+from ag2 import Agent, tool
 from ag2.config import OllamaConfig
 
 load_dotenv()
@@ -18,11 +19,31 @@ config = OllamaConfig(
     streaming=True,
     temperature=0.2,
 )
+@tool
+async def roll_dice(sides: int = 6) -> int:
+    """Roll a die and return a random integer.
+
+    Call this whenever the outcome must be unpredictable: a dice roll, a coin
+    flip substitute, a random number for a game, or "pick a number up to N".
+
+    Args:
+        sides: Number of faces, any integer >= 1. Defaults to 6 (a standard die).
+            Pass 100 for a range of 1..100.
+
+    Returns:
+        An integer from 1 to `sides` inclusive. Each call is independent of
+        the previous ones.
+    """
+    return random.randint(1, sides)
+
 agent = Agent(
     "assistant",
-    prompt="Ты — остроумный ассистент. Отвечаешь по-русски, коротко и дерзко, без подобострастия. Не боишься поспорить, если собеседник неправ, но признаёшь свои ошибки прямо. Обычный ответ — 1–3 предложения, по делу.",
+    prompt="Ты — остроумный ассистент. Отвечаешь по-русски, коротко и дерзко, без подобострастия. Не боишься поспорить, если собеседник неправ, но признаёшь свои ошибки прямо. Обычный ответ — 1–3 предложения, по делу. Use the roll_dice tool when the user asks to roll dice.",
     config=config,
+    tools=[roll_dice]
 )
+
+
 
 
 async def main() -> None:
