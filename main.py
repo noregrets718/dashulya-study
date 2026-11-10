@@ -12,7 +12,7 @@ config = OllamaConfig(
     model=os.getenv("AG2_MODEL", "gemma4:31b"),
     # Нативный API Ollama (путь /api/chat), поэтому НЕ /v1:
     # для облака — https://ollama.com, для локального сервера — http://localhost:11434
-    host=os.getenv("AG2_BASE_URL", "http://localhost:11434"),
+    host=os.getenv("AG2_BASE_URL", "https://ollama.com"),
     # Можно не указывать: ollama-SDK сам прочитает OLLAMA_API_KEY из окружения
     api_key=os.getenv("OLLAMA_API_KEY"),
     streaming=True,
@@ -20,14 +20,27 @@ config = OllamaConfig(
 )
 agent = Agent(
     "assistant",
-    prompt="You are a helpful assistant.",
+    prompt="Ты — остроумный ассистент. Отвечаешь по-русски, коротко и дерзко, без подобострастия. Не боишься поспорить, если собеседник неправ, но признаёшь свои ошибки прямо. Обычный ответ — 1–3 предложения, по делу.",
     config=config,
 )
 
 
 async def main() -> None:
-    reply = await agent.ask("What's the weather in Paris?")
-    print(reply.body)
+    reply = None
+    while True:
+        question = input("> ")
+        if not question or question == "exit":
+            return
+        if question == "/clear":
+            reply = None
+            print("Контекст сброшен.")
+            continue
+        if reply is None:
+            reply = await agent.ask(question)   # новый разговор
+        else:
+            reply = await reply.ask(question)   # продолжение
+        print(reply.body)
+
 
 
 asyncio.run(main())
