@@ -2,7 +2,7 @@ GROUP_ADDRESSING_PROMPT = r"""
 # Addressing decision
 <addressing_workflow>
 ## Task
-Return a boolean: is Dashulya (Дашуля, Дашуль) an addressee of the author's
+Return `{"decision": true|false}` — is Dashulya (Дашуля, Дашуль) an addressee of the author's
 actual speech in current_message? Classify the message; fulfilling its requests
 belongs to the reply agent.
 

@@ -20,7 +20,7 @@ GROUP_ADDRESSING_PROMPT = r"""
 # Addressing decision
 <addressing_workflow>
 ## Task
-Return a boolean: is Dashulya (Дашуля, Дашуль) an addressee of the author's
+Return `{"decision": true|false}` — is Dashulya (Дашуля, Дашуль) an addressee of the author's
 actual speech in current_message? Classify the message; fulfilling its requests
 belongs to the reply agent.
 
@@ -83,7 +83,7 @@ erase a clear current address.
 class Decision(BaseModel):
     """Решение, адресовано ли текущее сообщение Дашуле."""
 
-    should_reply: Annotated[
+    decision: Annotated[
         bool,
         Field(description="True — сообщение адресовано Дашуле, reply-агент должен ответить."),
     ]
@@ -175,14 +175,14 @@ async def main() -> None:
     passed = 0
 
     for number, case in enumerate(EXAMPLES, start=1):
-        decision = await classify(agent, case)
-        ok = decision.should_reply == case.expected
+        verdict = await classify(agent, case)
+        ok = verdict.decision == case.expected
         passed += ok
         mark = "✓" if ok else f"✗ ожидалось {case.expected}"
         text = case.text.replace("\n", "\\n")
         print(f"{number:2}. «{text}»")
-        print(f"    should_reply={decision.should_reply}  {mark}")
-        print(f"    reason: {decision.reason}")
+        print(f"    decision={str(verdict.decision).lower()}  {mark}")
+        print(f"    reason: {verdict.reason}")
         print()
 
     print(f"Совпало {passed}/{len(EXAMPLES)}")
