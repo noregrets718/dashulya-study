@@ -1,18 +1,20 @@
 import asyncio
 import os
-import random
 from typing import Annotated
 
 from ag2.events import ToolCallEvent, ToolResultEvent, ToolErrorEvent
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
 from dotenv import load_dotenv
-from ag2 import Agent, tool, observer, AgentReply
+from ag2 import Agent, observer, AgentReply
 from ag2.config import OllamaConfig
 from aiogram import Bot, Dispatcher, F
 from pydantic import BaseModel, Field, model_validator
 
+from db import init_db, save_message
 from prompts import GROUP_ADDRESSING_PROMPT
+from tools import roll_dice, search_memory
+
 
 
 load_dotenv()
@@ -60,6 +62,16 @@ classifier = Agent(
     response_schema=Decision,
 )
 
+def build_classifier_input(message: Message) -> str:
+    parts = [f"current_message.text: {message.text}"]
+    if message.reply_to_message:
+        original = message.reply_to_message
+        sender = original.from_user.first_name if original.from_user else "unknown"
+        parts.append(f"current_message.reply_to.sender_name: {sender}")
+        parts.append(f"current_message.reply_to.text: {original.text}")
+    parts.append("recent_conversation: (empty)")
+    return "\n".join(parts)
+
 @observer(ToolCallEvent)
 def tool_call(tool: ToolCallEvent) -> None:
     print(tool.name, tool.arguments)
@@ -73,28 +85,12 @@ def tool_error(error: ToolErrorEvent) -> None:
 
 
 
-@tool
-async def roll_dice(sides: int = 6) -> int:
-    """Roll a die and return a random integer.
-
-    Call this whenever the outcome must be unpredictable: a dice roll, a coin
-    flip substitute, a random number for a game, or "pick a number up to N".
-
-    Args:
-        sides: Number of faces, any integer >= 1. Defaults to 6 (a standard die).
-            Pass 100 for a range of 1..100.
-
-    Returns:
-        An integer from 1 to `sides` inclusive. Each call is independent of
-        the previous ones.
-    """
-    return random.randint(1, sides)
 
 agent = Agent(
     "assistant",
     prompt="Ты — остроумный ассистент. Отвечаешь по-русски, коротко и дерзко, без подобострастия. Не боишься поспорить, если собеседник неправ, но признаёшь свои ошибки прямо. Обычный ответ — 1–3 предложения, по делу. Use the roll_dice tool when the user asks to roll dice.",
     config=config,
-    tools=[roll_dice],
+    tools=[roll_dice, search_memory],
     observers=[tool_call, tool_result, tool_error]
 )
 
@@ -105,7 +101,7 @@ conversations: dict[int, AgentReply] = {}
 dp = Dispatcher()
 bot = Bot(token=os.environ["TELEGRAM_BOT_TOKEN"])
 BOT_ID = bot.id
-BOT_NAME ="Дашуля"
+
 
 @dp.message(CommandStart())                 # /start
 async def cmd_start(message: Message) -> None:
@@ -125,9 +121,9 @@ async def should_reply(message: Message) -> bool:
         return True
     if f"@{os.getenv("BOT_USERNAME")}" in message.text.casefold():
         return True
-    if BOT_NAME.casefold() in message.text.casefold():
+    if (os.getenv("BOT_NAME")).casefold() in message.text.casefold():
         # retries: при кривом ответе ag2 переспросит модель, показав ошибку схемы
-        verdict = await (await classifier.ask(message.text)).content(retries=2)
+        verdict = await (await classifier.ask(build_classifier_input(message))).content(retries=2)
         return verdict.decision
     return False
 
@@ -136,6 +132,8 @@ async def should_reply(message: Message) -> bool:
 
 @dp.message(F.text)                         # всё остальное с текстом — эхо
 async def chat(message: Message) -> None:
+    init_db()
+    save_message(message.chat.id, message.from_user.username, message.text )
     if not await should_reply(message):
         return
 
